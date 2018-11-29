@@ -1,6 +1,18 @@
-MIT License
+ansible-vsts-agent-deploy
 
-Copyright (c) 2018 - Xenit AB
+THIRD-PARTY SOFTWARE NOTICES AND INFORMATION
+Do Not Translate or Localize
+
+This project incorporates components from the projects listed below. The original copyright notices and the licenses under which Xenit AB received such components are set forth below. Xenit AB reserves all rights not expressly granted herein, whether by implication, estoppel or otherwise.
+
+1. ziozzang/python-on-coreos (https://github.com/ziozzang/python-on-coreos)
+
+
+%% ziozzang/python-on-coreos NOTICES AND INFORMATION BEGIN HERE
+=========================================
+The MIT License (MIT)
+
+Copyright (c) 2015 Jioh L. Jung
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,3 +31,5 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+=========================================
+END OF ziozzang/python-on-coreos NOTICES AND INFORMATION

@@ -1,0 +1,42 @@
+- name: Wait for host connection
+  wait_for:
+    port: 22
+    host: '{{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }}'
+    search_regex: OpenSSH
+    delay: 10
+  vars:
+    ansible_connection: local
+
+- name: Bootstrap | Check if bootstrap is needed
+  raw: stat /opt/bin/.bootstrapped
+  register: need_bootstrap
+  environment: {}
+  failed_when: false
+  changed_when: false
+
+- name: Force binaries directory for Container Linux by CoreOS
+  set_fact:
+    bin_dir: "/opt/bin"
+
+- name: Bootstrap | Run bootstrap.sh
+  script: bootstrap.sh
+  when: need_bootstrap.rc != 0
+
+- name: Set fact for ansible_python_interpreter
+  set_fact:
+    ansible_python_interpreter: "{{ bin_dir }}/python"
+
+- name: update pip if needed
+  pip: 
+    name: pip
+    state: latest
+
+- name: Install required python modules
+  pip:
+    name: "{{ item }}"
+    state: latest
+  loop: 
+  - httplib2
+  - six
+  environment:
+    PATH: "{{ ansible_env.PATH }}:{{ bin_dir }}"

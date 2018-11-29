@@ -1,0 +1,21 @@
+- name: Create vsts-agents service file
+  template:
+    src: vsts-agent.service.j2
+    dest: "/etc/systemd/system/{{ vstsAgentName }}.service"
+    owner: root
+    group: root
+    mode: 0644
+  register: registryServiceFile
+  with_sequence: start=1 end={{ vstsAgentCount }}
+  vars:
+    vstsAgentName: "vsts-agent{{ item }}"
+
+- name: Enable and restart vsts-agents
+  service:
+    daemon_reload: yes
+    name: "{{ vstsAgentName }}"
+    state: restarted
+    enabled: yes
+  with_sequence: start=1 end={{ vstsAgentCount }}
+  vars:
+    vstsAgentName: "vsts-agent{{ item }}"

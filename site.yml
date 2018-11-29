@@ -1,0 +1,20 @@
+- hosts: all
+
+  roles:
+    - azure-deploy-coreos
+
+  environment:
+    AZURE_CLIENT_ID: "{{ AZURE_CLIENT_ID }}"
+    AZURE_SECRET: "{{ AZURE_SECRET }}"
+    AZURE_SUBSCRIPTION_ID: "{{ AZURE_SUBSCRIPTION_ID }}"
+    AZURE_TENANT: "{{ AZURE_TENANT }}"
+
+- hosts: vsts
+  gather_facts: no
+
+  roles:
+    - bootstrap-coreos
+    - vsts
+
+  vars:
+    - ansible_become: true

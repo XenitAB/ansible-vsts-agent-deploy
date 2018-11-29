@@ -1,0 +1,133 @@
+- name: Validate that variables are set
+  assert:
+    that:
+      - VstsAccount is defined
+      - VstsToken is defined
+
+- name: Set python interpreter if using Azure DevOps
+  set_fact:
+    ansible_python_interpreter: "{{ adoAnsiblePythonInterpreter }}"
+  when: adoAnsiblePythonInterpreter is defined
+
+- name: Set playbook facts
+  set_fact:
+    time: "{{ ansible_date_time.iso8601_basic_short }}"
+    timeExpiry: "{{ '%Y-%m-%d' | strftime( ( ansible_date_time.epoch | int ) + ( 86400 * 3 )  ) }}"
+    resourceGroupName: "rg-{{ environmentShort }}-{{ locationShort }}-{{ commonName }}"
+    storageAccountName: "strg{{ environmentShort }}{{ locationShort }}{{ commonName }}"
+    storageContainerName: "ansible"
+
+- name: Create Azure resource group ({{ resourceGroupName }})
+  azure_rm_resourcegroup:
+     name: "{{ resourceGroupName }}"
+     location: "{{ location }}"
+
+- name: Create Azure storage account (strg{{ environmentShort }}{{ locationShort }}{{ commonName }})
+  azure_rm_storageaccount:
+    resource_group: "{{ resourceGroupName }}"
+    name: "{{ storageAccountName }}"
+    type: Standard_RAGRS
+  register: storageAccount
+
+- name: Find files in ./roles/azure-deploy-coreos/files
+  find:
+    paths: ./roles/azure-deploy-coreos/files
+    recurse: yes
+    file_type: file
+  register: files
+
+- name: Create container ({{ storageContainerName }}) and upload files from ./roles/azure-deploy-coreos/files
+  azure_rm_storageblob:
+    resource_group: "{{ resourceGroupName }}"
+    storage_account_name: "{{ storageAccountName }}"
+    container: "{{ storageContainerName }}"
+    blob: "{{ time }}/{{ item.path | regex_replace('^roles/azure-deploy-coreos/files/(.*)', '\\1') }}"
+    src: "{{ item.path }}"
+  with_items: "{{ files.files }}"
+
+- name: Get Azure storage account keys
+  azure_rm_resource:
+    resource_group: "{{ resourceGroupName }}"
+    provider: storage
+    resource_type: storageAccounts
+    resource_name: "{{ storageAccountName }}/ListAccountSas"
+    api_version: "2018-03-01-preview"
+    method: POST
+    body:
+      signedServices: "b"
+      signedResourceTypes: "o"
+      signedPermission: "r"
+      signedProtocol: "https"
+      signedExpiry: "{{ timeExpiry }}"
+  register: storageAccountSas
+
+- name: Set Azure storage account facts
+  set_fact:
+    storageUri: "{{ storageAccount.state.primary_endpoints.blob }}"
+    storageSasToken: "{{ storageAccountSas.response.accountSasToken  }}"
+
+- name: Set ARM Template deployment name
+  set_fact:
+    deploymentName: "{{ commonName }}_{{ time }}"
+
+- name: Create azure deploy ({{ deploymentName }})
+  azure_rm_deployment:
+    state: present
+    resource_group_name: "{{ resourceGroupName }}"
+    location: "{{ location }}"
+    deployment_name: "{{ deploymentName }}"
+    template_link: "{{ storageUri }}{{ storageContainerName }}/{{ time }}/armtemplates/vsts/main.json?{{ storageSasToken }}"
+    parameters:
+      containerUri:
+        value: "{{ storageUri }}{{ storageContainerName }}"
+      containerSasToken:
+        value: "?{{ storageSasToken }}"
+      time:
+        value: "{{ time }}"
+      commonName:
+        value: "{{ commonName }}"
+      vmCount:
+        value: "{{ nodeCount }}"
+      locationShort:
+        value: "{{ locationShort }}"
+      environmentShort:
+        value: "{{ environmentShort }}"
+      virtualMachineSize:
+        value: "{{ vmSize }}"
+      adminUsername:
+        value: "{{ sshUsername }}"
+      virtualNetworkName:
+        value: "{{ virtualNetworkName }}"
+      virtualNetworkRG:
+        value: "{{ virtualNetworkRG }}"
+      diskSizeGB:
+        value: "{{ osDiskSize }}"
+      adminPublicKey:
+        value: "{{ sshPublicKey }}"
+      subnetName:
+        value: "{{ subnetName }}"
+  register: mainDeployment
+
+- name: Get Azure node deployment outputs
+  azure_rm_resource:
+    resource_group: "{{ resourceGroupName }}"
+    provider: Resources
+    resource_type: deployments
+    resource_name: "{{ item.name }}"
+    api_version: "2017-05-10"
+    method: GET
+  with_items: "{{ mainDeployment.deployment.outputs.linkedDeploymentNames.value.linkedDeploymentNamesLoop }}"
+  register: nodeDeployments
+
+- name: Set facts for deployed VMs
+  set_fact:
+    armNodeList: "{{ nodeDeployments | json_query('results[*].response.properties.outputs') | sort(attribute='vmName.value') | list }}"
+
+- name: Add inventory hosts
+  add_host:
+    hostname: "{{ item.vmName.value }}"
+    ansible_host: "{{ item.privateIP.value }}"
+    ansible_ip: "{{ item.privateIP.value }}"
+    ansible_user: "{{ item.adminUsername.value }}"
+    groups: "vsts-{{ environmentShort }}"
+  loop: "{{ armNodeList }}"

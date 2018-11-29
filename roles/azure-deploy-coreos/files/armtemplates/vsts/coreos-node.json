@@ -1,0 +1,143 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "containerUri": {
+            "type": "string"
+        },
+        "containerSasToken": {
+            "type": "string"
+        },
+        "time": {
+            "type": "string"
+        },
+        "commonName": {
+            "type": "string"
+        },
+        "locationShort": {
+            "type": "string"
+        },
+        "environmentShort": {
+            "type": "string"
+        },
+        "virtualMachineSize": {
+            "type": "string"
+        },
+        "adminUsername": {
+            "type": "string"
+        },
+        "virtualNetworkRG": {
+            "type": "string"
+        },
+        "virtualNetworkName": {
+            "type": "string"
+        },
+        "diskSizeGB": {
+            "type": "int"
+        },
+        "adminPublicKey": {
+            "type": "string"
+        },
+        "subnetName": {
+            "type": "string"
+        }
+    },
+    "variables": {
+        "vnetId": "[resourceId(parameters('virtualNetworkRG'),'Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
+        "subnetRef": "[concat(variables('vnetId'), '/subnets/', parameters('subnetName'))]",
+        "envLocation": "[concat(parameters('environmentShort'), '-', parameters('locationShort'))]",
+        "vmName": "[concat('vm-', variables('envLocation'), '-', parameters('commonName'))]",
+        "nic1Name": "[concat('nic-', variables('vmName'))]",
+        "osDisk1Name": "[concat('osdisk-', variables('vmName'))]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Compute/virtualMachines",
+            "name": "[variables('vmName')]",
+            "apiVersion": "2018-04-01",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "osProfile": {
+                    "computerName": "[variables('vmName')]",
+                    "adminUsername": "[parameters('adminUsername')]",
+                    "linuxConfiguration": {
+                        "disablePasswordAuthentication": "true",
+                        "ssh": {
+                            "publicKeys": [
+                                {
+                                    "path": "[concat('/home/', parameters('adminUsername'), '/.ssh/authorized_keys')]",
+                                    "keyData": "[parameters('adminPublicKey')]"
+                                }
+                            ]
+                        }
+                    }
+                },
+                "hardwareProfile": {
+                    "vmSize": "[parameters('virtualMachineSize')]"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "CoreOS",
+                        "offer": "CoreOS",
+                        "sku": "Stable",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "name": "[variables('osDisk1Name')]",
+                        "createOption": "fromImage",
+                        "diskSizeGB": "[parameters('diskSizeGB')]",
+                        "managedDisk": {
+                            "storageAccountType": "Premium_LRS"
+                        }
+                    },
+                    "dataDisks": []
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('nic1Name'))]"
+                        }
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[concat('Microsoft.Network/networkInterfaces/', variables('nic1Name'))]"
+            ]
+        },
+        {
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[variables('nic1Name')]",
+            "apiVersion": "2018-04-01",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "subnet": {
+                                "id": "[variables('subnetRef')]"
+                            },
+                            "privateIPAllocationMethod": "Dynamic"
+                        }
+                    }
+                ]
+            },
+            "dependsOn": []
+        }
+    ],
+    "outputs": {
+        "adminUsername": {
+            "type": "string",
+            "value": "[parameters('adminUsername')]"
+        },
+        "vmName": {
+            "type": "string",
+            "value": "[variables('vmName')]"
+
+        },
+        "privateIP": {
+            "type": "string",
+            "value": "[reference(concat('Microsoft.Network/networkInterfaces/', variables('nic1Name'))).ipConfigurations[0].properties.privateIPAddress]"
+        }
+    }
+}

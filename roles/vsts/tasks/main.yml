@@ -1,0 +1,5 @@
+- name: Include docker management task
+  include_tasks: docker.yml
+
+- name: Include vsts management task
+  include_tasks: vsts.yml

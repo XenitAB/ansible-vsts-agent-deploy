@@ -1,0 +1,11 @@
+- name: Enable docker service
+  service:
+    daemon_reload: yes
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Install docker-py
+  pip:
+    name: docker-py
+    state: latest

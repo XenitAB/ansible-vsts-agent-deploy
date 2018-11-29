@@ -1,0 +1,5 @@
+location: west europe
+locationShort: we
+commonName: vsts
+sshUsername: <userName>
+sshPublicKey: <sshPublicKey>

@@ -1,0 +1,128 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "containerUri": {
+            "type": "string"
+        },
+        "containerSasToken": {
+            "type": "string"
+        },
+        "time": {
+            "type": "string"
+        },
+        "commonName": {
+            "type": "string"
+        },
+        "vmCount": {
+            "type": "int",
+            "minValue": 1,
+            "maxValue": 10
+        },
+        "locationShort": {
+            "type": "string"
+        },
+        "environmentShort": {
+            "type": "string"
+        },
+        "virtualMachineSize": {
+            "type": "string"
+        },
+        "adminUsername": {
+            "type": "string"
+        },
+        "virtualNetworkRG": {
+            "type": "string"
+        },
+        "virtualNetworkName": {
+            "type": "string"
+        },
+        "diskSizeGB": {
+            "type": "int"
+        },
+        "adminPublicKey": {
+            "type": "string"
+        },
+        "subnetName": {
+            "type": "string"
+        }
+    },
+    "variables": {
+        "linkedDeploymentNames": {
+            "copy": [
+                {
+                    "name": "linkedDeploymentNamesLoop",
+                    "count": "[parameters('vmCount')]",
+                    "input": {
+                        "name": "[concat('linkedTemplate_', parameters('commonName'), padLeft(copyindex('linkedDeploymentNamesLoop', 1), 2, '0'), '_', parameters('time'))]"
+                    }
+                }
+            ]
+        }
+    },
+    "resources": [
+        {
+            "apiVersion": "2017-05-10",
+            "copy": {
+                "name": "vmLoop",
+                "count": "[parameters('vmCount')]"
+              },
+            "name": "[concat('linkedTemplate_', parameters('commonName'), padLeft(copyindex(1), 2, '0'), '_', parameters('time'))]",
+            "type": "Microsoft.Resources/deployments",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[concat(parameters('containerUri'), '/', parameters('time'), '/armtemplates/vsts/coreos-node.json', parameters('containerSasToken'))]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "containerUri": {
+                        "value": "[parameters('containerUri')]"
+                    },
+                    "containerSasToken": {
+                        "value": "[parameters('containerSasToken')]"
+                    },
+                    "time": {
+                        "value": "[parameters('time')]"
+                    },
+                    "commonName": {
+                        "value": "[concat(parameters('commonName'), padLeft(copyindex(1), 2, '0'))]"
+                    },
+                    "locationShort": {
+                        "value": "[parameters('locationShort')]"
+                    },
+                    "environmentShort": {
+                        "value": "[parameters('environmentShort')]"
+                    },
+                    "virtualMachineSize": {
+                        "value": "[parameters('virtualMachineSize')]"
+                    },
+                    "adminUsername": {
+                        "value": "[parameters('adminUsername')]"
+                    },
+                    "virtualNetworkRG": {
+                        "value": "[parameters('virtualNetworkRG')]"
+                    },
+                    "virtualNetworkName": {
+                        "value": "[parameters('virtualNetworkName')]"
+                    },
+                    "diskSizeGB": {
+                        "value": "[parameters('diskSizeGB')]"
+                    },
+                    "adminPublicKey": {
+                        "value": "[parameters('adminPublicKey')]"
+                    },
+                    "subnetName": {
+                        "value": "[parameters('subnetName')]"
+                    }
+                }
+            }
+        }
+    ],
+    "outputs": {
+        "linkedDeploymentNames": {
+            "type": "object",
+            "value": "[variables('linkedDeploymentNames')]"
+        }
+    }
+}

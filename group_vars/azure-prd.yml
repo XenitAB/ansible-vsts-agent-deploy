@@ -1,0 +1,9 @@
+
+environment: production
+environmentShort: prd
+nodeCount: 1
+virtualNetworkRG: <Virtual Network Resource Group Name>
+virtualNetworkName: <Virtual Network Name>
+subnetName: <Subnet Name>
+osDiskSize: 128
+vmSize: Standard_DS3_v2
